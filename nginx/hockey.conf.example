@@ -1,0 +1,33 @@
+# Example Nginx config on the Hockey VM (one server block per environment).
+# Domains are placeholders. Azure Front Door sits in front of this server.
+# - Static Vue.js build is served from /var/www/<env>-hockeyApp
+# - API requests are proxied to the .NET container on port 8080
+
+server {
+    listen 443 ssl http2;
+    server_name hockey.example.com;
+
+    ssl_certificate     /etc/ssl/certs/example.crt;
+    ssl_certificate_key /etc/ssl/private/example.key;
+
+    root  /var/www/prod-hockeyApp;
+    index index.html;
+
+    # Vue.js single-page app
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # .NET API container
+    location /api/ {
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        # WebSocket support for real-time chat
+        proxy_set_header   Upgrade           $http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+    }
+}
